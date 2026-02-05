@@ -6,8 +6,8 @@
 The system begins by loading the input PDF document from the local directory using LangChain’s PyPDFLoader.
 Each page of the PDF is converted into a structured Document object that contains:
 
--Page content (text)
+- Page content (text)
 
--Metadata such as page number and source file name
+- Metadata such as page number and source file name
 
 This structured format allows downstream processing while preserving document traceability.
