@@ -1,157 +1,183 @@
-# RAG Semantic Document Retrieval 
+# Semantic Document Retrieval System (RAG – Retrieval Only)
 
-## Architecture Overview
+## Overview
 
-<img width="921" height="411" alt="architecture_diagram drawio" src="https://github.com/user-attachments/assets/77365e6a-b18e-4034-b73a-b0f02a608e35" />
+This project implements a **backend-only semantic document retrieval system**, focused exclusively on the **retrieval component of Retrieval-Augmented Generation (RAG)**.  
+No Large Language Models (LLMs) or text generation are used.
 
-This project implements a Retrieval-Augmented Generation (RAG) style semantic
-retrieval system using LangChain, HuggingFace embeddings, and a FAISS vector
-database. Documents are loaded from a local directory, cleaned, chunked,
-embedded, and indexed for cosine-similarity-based semantic search.
+The system accepts a natural language query and returns the **Top-K most semantically relevant document chunks**, along with full metadata for traceability.
 
-The solution is fully local, free-tier compatible, and evaluation-friendly,
-with complete traceability to document source, page number, and chunk ID.
+---
 
-## LangChain
+## High-Level Architecture
 
-This project uses the open-source LangChain library to orchestrate the document ingestion and semantic retrieval pipeline. LangChain provides high-level abstractions that simplify building retrieval systems by managing document loading, text splitting, embedding generation, and vector similarity search.
+```
+User Query
+   ↓
+Query Embedding
+   ↓
+Vector Similarity Search (FAISS – Cosine Similarity)
+   ↓
+Top-K Relevant Chunks
+   ↓
+Chunks + Metadata (page, source, chunk\_id, score)
+```
 
-For this assignment, LangChain is used only for the retrieval component of RAG, without any LLM-based text generation.
+---
 
-### Features Used from LangChain
+## Tech Stack
 
-- Document loading and indexing
+* **Python**
+* **LangChain** (PDF loading \& chunking)
+* **Sentence-Transformers**
 
-- Text chunking with configurable chunk size and overlap
+  * `sentence-transformers/all-MiniLM-L6-v2`
 
-- Vector embedding generation
+* **FAISS** (local, free-tier vector database)
 
-- Semantic similarity search over vector databases
-
-Metadata handling for traceability (document name, page number, chunk index)
-
-#### Task-Specific Configuration
-
-The following components are used in this implementation and can be replaced with alternatives if needed:
-
-Document format, loader, and splitter:
-PDF documents using PyPDFLoader and RecursiveCharacterTextSplitter
-
-Embedding model:
-HuggingFace sentence-transformers/all-MiniLM-L6-v2
-
-Vector database:
-FAISS (local, in-memory, free tier)
+---
 
 ## Document Loading
 
-The system begins by loading the input PDF document from the local directory using LangChain’s PyPDFLoader.
-Each page of the PDF is converted into a structured Document object that contains:
+* PDF documents are loaded from a local directory using `PyPDFLoader`.
+* Each page retains metadata such as:
 
-- Page content (text)
+  * Source file name
+  * Page number
 
-- Metadata such as page number and source file name
+* Metadata is preserved end-to-end for evaluation and auditing.
 
-This structured format allows downstream processing while preserving document traceability.
+---
 
 ## Text Chunking Strategy
-- Chunking is implemented using `RecursiveCharacterTextSplitter`.
-- Chunking parameters:
-  - `chunk_size = 400`
-  - `chunk_overlap = 80`
-- Chunk IDs are generated **per document** to ensure stable identification.
-- Metadata retained per chunk:
-  - Document name
-  - Page number
-  - Chunk index
+
+* Documents are split using `RecursiveCharacterTextSplitter`.
+* Chunking parameters are configurable:
+
+|Parameter|Value|
+|-|-|
+|Chunk Size|400|
+|Chunk Overlap|80|
+
+### Rationale
+
+* Smaller chunks improve semantic precision.
+* Overlap prevents context loss at boundaries.
+* Clause-level structure is preserved for standards-style documents (ISO 27001).
+
+Each chunk is assigned a **global sequential chunk ID**, ensuring unique identification across the dataset.
 
 ---
 
-## 4. Text Cleaning
-Before chunking and embedding, document text is normalized:
-- ISO header/footer noise (e.g., `ISO/IEC 27001:2022(E)`) is removed
-- Newline characters inside sentences are replaced with spaces
-- Excess whitespace is normalized
+## Text Cleaning Strategy
 
-This improves embedding quality and cosine similarity accuracy.
+* Structural newlines, headings, and clause formatting are **preserved during embedding** to maintain semantic accuracy.
+* Only excessive blank lines or noise are removed.
+* Formatting normalization (indentation, spacing) is applied **only at output time** for readability.
 
----
-
-## 5. Embedding Model
-**Model Used:**
-
-sentence-transformers/all-MiniLM-L6-v2
-
-### Rationale:
-- Free and open-source
-- Lightweight and fast (384 dimensions)
-- Widely used for semantic search
-- Suitable for on-prem and enterprise environments
+This separation ensures retrieval quality is not degraded by aggressive preprocessing.
 
 ---
 
-## 6. Vector Database
-**FAISS (Local, Free Tier)**
+## Embedding Model
 
-### Rationale:
-- Fully local and free
-- Easy to inspect and validate
-- Supports inner-product search for cosine similarity
-- Suitable for evaluation environments
+**Model Used:**  
+`sentence-transformers/all-MiniLM-L6-v2`
 
----
+### Rationale  
 
-## 7. Similarity Scoring
-- Cosine similarity is used for semantic retrieval.
-- Embeddings are L2-normalized.
-- FAISS inner-product search is applied.
-- Scores range from `0` to `1`, where higher values indicate stronger semantic relevance.
+* Free and open-source
+* Lightweight and fast
+* Produces 384-dimensional embeddings
+* Well-suited for semantic similarity tasks
 
-Moderate scores are expected for broad queries, while clause-specific queries
-produce higher similarity values.
+Embeddings are generated manually using `SentenceTransformer` for full control and transparency.
 
 ---
 
-## 8. How to Run the Code
+## Vector Database (FAISS)
 
-### Install dependencies
+* FAISS is used in **local, in-memory mode**
+* Index type: `IndexFlatIP`
+* All vectors are **L2-normalized**
+* Inner Product similarity is used to compute **Cosine Similarity**
+
+### Rationale
+- Fully local and offline
+- High-performance vector similarity search
+- Supports cosine similarity via inner product
+- Easy to reproduce and evaluate
+- Ideal for small to medium-scale retrieval systems
+
+### Similarity  
+
+* **Similarity Score:** Cosine similarity (range: 0–1)
+
+---
+
+## Semantic Retrieval Logic
+
+1. User query is embedded using the same embedding model.
+2. FAISS performs vector similarity search.
+3. Top-K most similar chunks are retrieved.
+4. Each result includes:
+
+   * Chunk text
+   * Similarity score
+   * Source document
+   * Page number
+   * Chunk ID
+
+The value of **K is configurable** (default: 3).
+
+---
+
+## Sample Queries Used
+
+1. *information security risk assessment requirements*
+2. *information security risk treatment process*
+3. *internal audit requirements*
+
+
+---
+
+## Notes on Retrieval Behavior
+
+* Semantic retrieval may rank broader governance sections higher due to contextual overlap.
+* Increasing Top-K ensures the most precise clause (e.g., Clause 6.1.2) is retrieved.
+* This behavior is expected and documented as part of the evaluation.
+
+---
+
+## How to Run
+
+1. Install dependencies:
+
 ```bash
-pip install sentence-transformers faiss-cpu langchain==0.1.20 langchain-community==0.0.38 pypdf
-```
+   pip install -r requirements.txt
+   ```
 
-### Run the pipeline
-```bash
-python rag_pipeline.py
-```
+2. Make sure your files looks like this :   
+  `project-root/`  
+   `│── data/`    
+   `│   └── example.pdf`    
+   `│── semantic_retrieval.ipynb`    
+   `│── requirements.txt`    
+   `│── README.md`  
 
+3. Run : Open the Notebook
+
+- Open semantic_retrieval.ipynb
+
+- Run all cells from top to bottom (Kernel → Restart & Run All)
 ---
 
-## 9. Sample Queries Used for Testing
-1. ISO 27001 Clause 6.1.2 information security risk assessment requirements
-2. ISO 27001 Clause 5.1 leadership and commitment responsibilities
-3. ISO 27001 Clause 4.3 determining the scope of the ISMS
-4. ISO 27001 Annex A access control requirements
-5. ISO 27001 Clause 9.2 internal audit requirements
+## Evaluation Readiness
 
----
+* Fully backend-only
+* Free-tier tools only
+* Deterministic and reproducible
+* GitHub-render friendly (Markdown compliant)
 
-## 10. Sample Output Format
-```json
-{
-  "chunk_text": "...",
-  "score": 0.82,
-  "source": "ISO_IEC_27001_2022.pdf",
-  "page": 9,
-  "chunk_id": 12
-}
-```
-
----
-
-## 11. Notes on Determinism
-- Page numbers reflect physical PDF page indices returned by the document loader.
-- Chunk IDs are generated dynamically per document and may vary based on
-  chunking configuration.
-- These variations do not affect retrieval accuracy or reproducibility.
-
+This project is designed for easy review, validation, and extension.
 
