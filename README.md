@@ -49,6 +49,17 @@ Chunks + Metadata (page, source, chunk\_id, score)
 
 ---
 
+## Text Cleaning Strategy
+
+* Structural newlines, headings, and clause formatting are **preserved during embedding** to maintain semantic accuracy.
+* Only excessive blank lines or noise are removed.
+* Formatting normalization (indentation, spacing) is applied **only at output time** for readability.
+
+This separation ensures retrieval quality is not degraded by aggressive preprocessing.
+
+
+---
+
 ## Text Chunking Strategy
 
 * Documents are split using `RecursiveCharacterTextSplitter`.
@@ -66,16 +77,6 @@ Chunks + Metadata (page, source, chunk\_id, score)
 * Clause-level structure is preserved for standards-style documents (ISO 27001).
 
 Each chunk is assigned a **global sequential chunk ID**, ensuring unique identification across the dataset.
-
----
-
-## Text Cleaning Strategy
-
-* Structural newlines, headings, and clause formatting are **preserved during embedding** to maintain semantic accuracy.
-* Only excessive blank lines or noise are removed.
-* Formatting normalization (indentation, spacing) is applied **only at output time** for readability.
-
-This separation ensures retrieval quality is not degraded by aggressive preprocessing.
 
 ---
 
@@ -139,13 +140,6 @@ The value of **K is configurable** (default: 3).
 3. *internal audit requirements*
 
 
----
-
-## Notes on Retrieval Behavior
-
-* Semantic retrieval may rank broader governance sections higher due to contextual overlap.
-* Increasing Top-K ensures the most precise clause (e.g., Clause 6.1.2) is retrieved.
-* This behavior is expected and documented as part of the evaluation.
 
 ---
 
@@ -172,12 +166,4 @@ The value of **K is configurable** (default: 3).
 - Run all cells from top to bottom (Kernel → Restart & Run All)
 ---
 
-## Evaluation Readiness
-
-* Fully backend-only
-* Free-tier tools only
-* Deterministic and reproducible
-* GitHub-render friendly (Markdown compliant)
-
-This project is designed for easy review, validation, and extension.
 
